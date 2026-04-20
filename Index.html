@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>股票篩選系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4aa;
+    --accent2: #0095ff;
+    --gold: #f5c842;
+    --red: #ff4d6d;
+    --green: #00d4aa;
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-muted: #334155;
+    --star: #f5c842;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(0,212,170,0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 0%, rgba(0,149,255,0.07) 0%, transparent 50%);
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(17,24,39,0.8);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .logo span { color: var(--text-dim); }
+  header h1 { font-size: 15px; color: var(--text-dim); font-weight: 300; letter-spacing: 2px; }
+
+  .main { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+
+  /* Upload Zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(0,212,170,0.04); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-zone h2 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+  .upload-zone p { font-size: 13px; color: var(--text-dim); }
+
+  /* Conditions Panel */
+  .conditions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .cond-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .cond-card.active { border-color: var(--accent); }
+  .cond-card .cond-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .cond-card .cond-label { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .cond-card .cond-value { font-size: 13px; color: var(--text); font-weight: 500; margin-top: 6px; }
+  .cond-card.star-cond { border-color: rgba(245,200,66,0.3); background: rgba(245,200,66,0.03); }
+  .cond-card.star-cond .cond-num { color: var(--gold); }
+  .cond-star-badge {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(245,200,66,0.15); color: var(--gold);
+    font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+  }
+
+  /* Stats Bar */
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .stat-item { display: flex; align-items: center; gap: 8px; }
+  .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .stat-dot.green { background: var(--green); }
+  .stat-dot.gold { background: var(--gold); }
+  .stat-label { font-size: 12px; color: var(--text-dim); }
+  .stat-value { font-size: 14px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.gold { color: var(--gold); }
+
+  .divider { flex: 1; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    color: var(--text-dim); transition: all 0.2s; border: 1px solid transparent;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .tab.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-align: left;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr.star-row { background: rgba(245,200,66,0.04); }
+  tbody tr.star-row:hover { background: rgba(245,200,66,0.08); }
+  tbody tr.watchlist-row { background: rgba(0,149,255,0.05); }
+
+  td {
+    padding: 11px 16px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .stock-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--accent2);
+    font-size: 14px;
+  }
+  .star-mark { color: var(--gold); margin-right: 4px; font-size: 14px; }
+  .num { font-family: 'JetBrains Mono', monospace; }
+  .num.pos { color: var(--green); }
+  .num.high { color: var(--gold); }
+
+  .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 500;
+  }
+  .badge.buy { background: rgba(0,212,170,0.15); color: var(--green); }
+  .badge.sell { background: rgba(255,77,109,0.15); color: var(--red); }
+  .badge.star { background: rgba(245,200,66,0.15); color: var(--gold); }
+
+  /* Watchlist button */
+  .btn-watch {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer;
+    transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif;
+  }
+  .btn-watch:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-watch.watching { border-color: var(--accent2); color: var(--accent2); background: rgba(0,149,255,0.1); }
+
+  /* Watchlist Panel */
+  .watchlist-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 28px;
+  }
+  .watchlist-panel h3 { font-size: 14px; font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .watchlist-panel h3 .count {
+    background: var(--surface2); font-size: 11px; padding: 2px 8px; border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace; color: var(--accent2);
+  }
+  .watchlist-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .watch-tag {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px;
+  }
+  .watch-tag .code { font-family: 'JetBrains Mono', monospace; color: var(--accent2); font-weight: 600; }
+  .watch-tag .name { color: var(--text-dim); }
+  .watch-tag .remove {
+    color: var(--text-muted); cursor: pointer; margin-left: 4px; font-size: 14px; line-height: 1;
+    transition: color 0.15s;
+  }
+  .watch-tag .remove:hover { color: var(--red); }
+  .empty-watch { color: var(--text-dim); font-size: 13px; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state p { font-size: 14px; }
+
+  /* Search */
+  .search-box {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; color: var(--text); outline: none;
+    font-family: 'Noto Sans TC', sans-serif; width: 200px;
+    transition: border-color 0.2s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--text-dim); }
+
+  .btn-clear {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 7px 14px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif;
+  }
+  .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+  /* Notification */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 12px 18px; border-radius: 10px; font-size: 13px;
+    opacity: 0; transform: translateY(10px); transition: all 0.3s;
+    z-index: 999; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .sort-arrow { margin-left: 4px; opacity: 0.5; font-size: 10px; }
+  .sort-arrow.active { opacity: 1; color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .conditions { grid-template-columns: repeat(2, 1fr); }
+    .main { padding: 16px; }
+  }
+  @media (max-width: 600px) {
+    .conditions { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; }
+    .stats-bar { gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">STOCK<span>/</span>SCREEN</div>
+  <h1>股票篩選系統</h1>
+</header>
+
+<div class="main">
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="csvInput" accept=".csv" />
+    <div class="upload-icon">📂</div>
+    <h2>上傳 CSV 檔案</h2>
+    <p>拖曳或點擊選擇檔案，系統將自動套用篩選條件</p>
+  </div>
+
+  <!-- Conditions -->
+  <div class="conditions">
+    <div class="cond-card" id="c1card">
+      <div class="cond-num">條件 1</div>
+      <div class="cond-label">報買量 − 報賣量</div>
+      <div class="cond-value">&gt; 1,000</div>
+    </div>
+    <div class="cond-card" id="c2card">
+      <div class="cond-num">條件 2</div>
+      <div class="cond-label">成交量</div>
+      <div class="cond-value">&gt; 100,000</div>
+    </div>
+    <div class="cond-card" id="c3card">
+      <div class="cond-num">條件 3</div>
+      <div class="cond-label">投資人成交買賣別</div>
+      <div class="cond-value">買進</div>
+    </div>
+    <div class="cond-card star-cond" id="c4card">
+      <div class="cond-num">條件 4 ★</div>
+      <div class="cond-label">成交價（高價股加星號）</div>
+      <div class="cond-value">&gt; 150</div>
+      <span class="cond-star-badge">額外標記</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-item">
+      <div class="stat-dot green"></div>
+      <span class="stat-label">符合條件</span>
+      <span class="stat-value green" id="statTotal">0</span>
+      <span class="stat-label">筆</span>
+    </div>
+    <div class="stat-item">
+      <div class="stat-dot gold"></div>
+      <span class="stat-label">其中高價股 ★</span>
+      <span class="stat-value gold" id="statStar">0</span>
+      <span class="stat-label">筆</span>
+    </div>
+    <div class="divider"></div>
+    <input class="search-box" type="text" id="searchInput" placeholder="搜尋股票代號 / 名稱…" />
+    <button class="btn-clear" onclick="clearSearch()">清除</button>
+  </div>
+
+  <!-- Watchlist -->
+  <div class="watchlist-panel" id="watchlistPanel">
+    <h3>📌 自選觀察清單 <span class="count" id="watchCount">0</span></h3>
+    <div class="watchlist-tags" id="watchlistTags">
+      <span class="empty-watch">尚未加入任何股票，點擊表格中「＋觀察」加入</span>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar" id="tabBar" style="display:none">
+    <div class="tab active" onclick="switchTab('all', this)">全部結果</div>
+    <div class="tab" onclick="switchTab('star', this)">★ 高價股</div>
+    <div class="tab" onclick="switchTab('watch', this)">📌 觀察中</div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table id="resultTable">
+      <thead>
+        <tr>
+          <th onclick="sortTable('star')">標記 <span class="sort-arrow" id="sort-star"></span></th>
+          <th onclick="sortTable('code')">股票代號 <span class="sort-arrow" id="sort-code"></span></th>
+          <th onclick="sortTable('name')">股票名稱 <span class="sort-arrow" id="sort-name"></span></th>
+          <th onclick="sortTable('buyMinusSell')">報買量−報賣量 <span class="sort-arrow" id="sort-buyMinusSell"></span></th>
+          <th onclick="sortTable('volume')">成交量 <span class="sort-arrow" id="sort-volume"></span></th>
+          <th onclick="sortTable('price')">成交價 <span class="sort-arrow" id="sort-price"></span></th>
+          <th onclick="sortTable('tradeType')">買賣別 <span class="sort-arrow" id="sort-tradeType"></span></th>
+          <th>觀察</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody">
+        <tr><td colspan="8"><div class="empty-state"><div class="icon">📊</div><p>請上傳 CSV 檔案開始篩選</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allData = [];
+let filteredData = [];
+let watchlist = new Set(JSON.parse(localStorage.getItem('watchlist') || '[]'));
+let currentTab = 'all';
+let sortKey = '';
+let sortAsc = true;
+let searchTerm = '';
+
+// ── CSV Parser ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+// ── Column Mapping (flexible) ────────────────────────────────
+function guessColumns(headers) {
+  const lower = headers.map(h => h.toLowerCase());
+  const find = (...keys) => {
+    for (const k of keys) {
+      const i = lower.findIndex(h => h.includes(k));
+      if (i >= 0) return headers[i];
+    }
+    return null;
+  };
+  return {
+    code:      find('代號', 'code', '股票代號', '證券代號'),
+    name:      find('名稱', 'name', '股票名稱', '證券名稱'),
+    buyVol:    find('報買量', '委買量', 'bid'),
+    sellVol:   find('報賣量', '委賣量', 'ask'),
+    volume:    find('成交量', 'volume', '成交股數'),
+    price:     find('成交價', 'price', '成交金額', '收盤'),
+    tradeType: find('買賣別', '投資人', 'type', '類型'),
+  };
+}
+
+// ── Screen Logic ─────────────────────────────────────────────
+function screen(rows, cols) {
+  return rows.map(row => {
+    const buyVol  = parseFloat((row[cols.buyVol]  || '0').replace(/,/g, '')) || 0;
+    const sellVol = parseFloat((row[cols.sellVol] || '0').replace(/,/g, '')) || 0;
+    const volume  = parseFloat((row[cols.volume]  || '0').replace(/,/g, '')) || 0;
+    const price   = parseFloat((row[cols.price]   || '0').replace(/,/g, '')) || 0;
+    const tradeType = (row[cols.tradeType] || '').trim();
+    const buyMinusSell = buyVol - sellVol;
+
+    const c1 = buyMinusSell > 1000;
+    const c2 = volume > 100000;
+    const c3 = tradeType.includes('買') || tradeType === 'Buy';
+    const c4 = price > 150;
+
+    if (c1 && c2 && c3) {
+      return {
+        code:        row[cols.code]  || '',
+        name:        row[cols.name]  || '',
+        buyVol, sellVol, buyMinusSell, volume, price, tradeType,
+        isStar: c4,
+      };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  let data = [...filteredData];
+
+  if (currentTab === 'star')  data = data.filter(r => r.isStar);
+  if (currentTab === 'watch') data = data.filter(r => watchlist.has(r.code));
+
+  if (searchTerm) {
+    const s = searchTerm.toLowerCase();
+    data = data.filter(r => r.code.toLowerCase().includes(s) || r.name.toLowerCase().includes(s));
+  }
+
+  if (sortKey) {
+    data.sort((a, b) => {
+      let va = a[sortKey], vb = b[sortKey];
+      if (sortKey === 'star') { va = a.isStar ? 1 : 0; vb = b.isStar ? 1 : 0; }
+      if (typeof va === 'string') va = va.localeCompare(vb);
+      else va = va - vb;
+      return sortAsc ? va : -va;
+    });
+  }
+
+  const tbody = document.getElementById('resultBody');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">🔍</div><p>無符合條件的資料</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => {
+    const isW = watchlist.has(r.code);
+    const starTag = r.isStar ? `<span class="star-mark">★</span>` : '';
+    const starBadge = r.isStar ? `<span class="badge star">高價股</span>` : `<span style="color:var(--text-muted);font-size:12px">—</span>`;
+    const rowClass = r.isStar ? 'star-row' : (isW ? 'watchlist-row' : '');
+    return `
+    <tr class="${rowClass}">
+      <td>${starBadge}</td>
+      <td class="stock-code">${starTag}${r.code}</td>
+      <td>${r.name}</td>
+      <td class="num pos">+${r.buyMinusSell.toLocaleString()}</td>
+      <td class="num">${r.volume.toLocaleString()}</td>
+      <td class="num ${r.isStar ? 'high' : ''}">${r.price.toFixed(2)}</td>
+      <td><span class="badge buy">買進</span></td>
+      <td>
+        <button class="btn-watch ${isW ? 'watching' : ''}" onclick="toggleWatch('${r.code}','${r.name}',this)">
+          ${isW ? '✓ 觀察中' : '＋ 觀察'}
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Update stats
+  document.getElementById('statTotal').textContent = filteredData.length;
+  document.getElementById('statStar').textContent = filteredData.filter(r => r.isStar).length;
+  document.getElementById('statsBar').style.display = 'flex';
+  document.getElementById('tabBar').style.display = 'flex';
+}
+
+// ── Watchlist ─────────────────────────────────────────────────
+function toggleWatch(code, name, btn) {
+  if (watchlist.has(code)) {
+    watchlist.delete(code);
+    btn.textContent = '＋ 觀察';
+    btn.classList.remove('watching');
+    showToast(`已移除 ${code} ${name}`);
+  } else {
+    watchlist.add(code);
+    btn.textContent = '✓ 觀察中';
+    btn.classList.add('watching');
+    showToast(`已加入 ${code} ${name}`);
+  }
+  localStorage.setItem('watchlist', JSON.stringify([...watchlist]));
+  renderWatchlist();
+  if (currentTab === 'watch') render();
+}
+
+function renderWatchlist() {
+  const container = document.getElementById('watchlistTags');
+  document.getElementById('watchCount').textContent = watchlist.size;
+  if (watchlist.size === 0) {
+    container.innerHTML = `<span class="empty-watch">尚未加入任何股票，點擊表格中「＋觀察」加入</span>`;
+    return;
+  }
+  container.innerHTML = [...watchlist].map(code => {
+    const row = allData.find(r => r.code === code);
+    const name = row ? row.name : '';
+    const star = row && row.isStar ? '★ ' : '';
+    return `<div class="watch-tag">
+      <span class="code">${star}${code}</span>
+      <span class="name">${name}</span>
+      <span class="remove" onclick="removeFromWatch('${code}')">×</span>
+    </div>`;
+  }).join('');
+}
+
+function removeFromWatch(code) {
+  watchlist.delete(code);
+  localStorage.setItem('watchlist', JSON.stringify([...watchlist]));
+  renderWatchlist();
+  render();
+  showToast(`已移除 ${code}`);
+}
+
+// ── Sort ──────────────────────────────────────────────────────
+function sortTable(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = true; }
+  document.querySelectorAll('.sort-arrow').forEach(el => { el.textContent = ''; el.classList.remove('active'); });
+  const el = document.getElementById('sort-' + key);
+  if (el) { el.textContent = sortAsc ? '▲' : '▼'; el.classList.add('active'); }
+  render();
+}
+
+// ── Tab ───────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ── Search ────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  render();
+});
+function clearSearch() {
+  searchTerm = '';
+  document.getElementById('searchInput').value = '';
+  render();
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── File Upload ───────────────────────────────────────────────
+function handleFile(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    showToast('請上傳 .csv 格式的檔案');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (!rows.length) { showToast('檔案無法解析，請確認格式'); return; }
+    const cols = guessColumns(Object.keys(rows[0]));
+    
+    filteredData = screen(rows, cols);
+    allData = filteredData;
+    
+    renderWatchlist();
+    render();
+    
+    document.querySelector('.upload-zone h2').textContent = `✓ 已載入：${file.name}`;
+    document.querySelector('.upload-zone p').textContent = `共 ${rows.length} 筆資料，篩選出 ${filteredData.length} 筆`;
+    showToast(`篩選完成，共 ${filteredData.length} 筆符合條件`);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+document.getElementById('csvInput').addEventListener('change', e => handleFile(e.target.files[0]));
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// Init watchlist display
+renderWatchlist();
+</script>
+</body>
+</html>
